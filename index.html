@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fraud-Elimination Proposal: Response Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --ink:#182338; --ink-soft:#3D4B66; --paper:#EEF1F6; --card:#fff; --line:#C9D2E0;
+    --blue:#2456A6; --red:#B3352C; --red-bg:#FBEAE8; --green:#1F6E44; --green-bg:#E5F2EA;
+    --amber:#8A5A00; --amber-bg:#FBF1DC; --gray-bg:#E6EAF1;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',system-ui,sans-serif; }
+  button, input, textarea { font-family:inherit; }
+  button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+  a { color:var(--blue); }
+
+  header { background:var(--ink); color:#F2F5FA; padding:26px 20px 22px; }
+  .wrap { max-width:880px; margin:0 auto; }
+  .kicker-row { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .kicker { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.22em; color:#9FB0CC; text-transform:uppercase; }
+  h1 { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:clamp(30px,6vw,44px); line-height:1.05; margin:6px 0 0; text-transform:uppercase; }
+  #adminBtn { background:none; border:1px solid #3D4B66; color:#9FB0CC; border-radius:6px; padding:5px 11px; font-family:'IBM Plex Mono',monospace; font-size:11px; cursor:pointer; white-space:nowrap; }
+  .stats { display:flex; flex-wrap:wrap; gap:10px 28px; margin-top:18px; }
+  .stat b { display:block; font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .stat span { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#8FA0BE; }
+
+  main { max-width:880px; margin:0 auto; padding:18px 14px 60px; }
+  .toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:4px 2px 10px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); flex-wrap:wrap; }
+  #publishBtn { background:var(--blue); color:#fff; border:none; border-radius:6px; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:11px; cursor:pointer; }
+  .cards { display:grid; gap:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .card.overdue { border-color:#E3B7B2; }
+  .card-head { width:100%; text-align:left; background:none; border:none; cursor:pointer; padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; }
+  .avatar { width:52px; height:62px; border-radius:6px; flex-shrink:0; border:1px solid var(--line); background:var(--gray-bg); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .avatar img { width:100%; height:100%; object-fit:cover; object-position:top; }
+  .avatar.dim img { filter:grayscale(35%); }
+  .avatar .initials { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:20px; color:var(--ink-soft); }
+  .who { flex:1 1 200px; min-width:0; }
+  .who .nm { font-weight:600; font-size:15px; }
+  .who .meta { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  .ticker { font-family:'IBM Plex Mono',monospace; font-size:15px; background:var(--gray-bg); border:1px solid var(--line); border-radius:6px; padding:5px 10px; display:inline-flex; gap:7px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .ticker.alarm { color:var(--red); background:var(--red-bg); border-color:#E3B7B2; }
+  .ticker small { font-size:10px; opacity:.65; margin-left:1px; font-weight:400; }
+  .badge { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; padding:5px 10px; border-radius:99px; white-space:nowrap; }
+  .b-await { background:var(--red-bg); color:var(--red); }
+  .b-follow { background:var(--amber-bg); color:var(--amber); }
+  .b-resp { background:var(--green-bg); color:var(--green); }
+  .b-none { background:var(--gray-bg); color:var(--ink-soft); }
+  .card-body { border-top:1px solid var(--line); padding:14px 16px; display:grid; gap:12px; }
+  .chip-row { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--blue); padding:7px 12px; border-radius:6px; background:var(--gray-bg); text-decoration:none; display:inline-flex; align-items:center; border:none; }
+  .btn { font-weight:600; font-size:13px; color:#fff; border:none; border-radius:6px; padding:9px 14px; cursor:pointer; }
+  .btn-blue{background:var(--blue);} .btn-green{background:var(--green);} .btn-amber{background:var(--amber);} .btn-gray{background:#8593AB;}
+  .btn-ghost { background:none; border:1px solid var(--line); color:var(--blue); font-family:'IBM Plex Mono',monospace; font-size:12px; padding:7px 12px; border-radius:6px; cursor:pointer; }
+  .dates { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); line-height:1.8; }
+  .q-label { font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-soft); }
+  .quote { border-left:3px solid var(--blue); padding:8px 12px; background:#F7F9FC; border-radius:0 6px 6px 0; }
+  .quote .q-text { font-size:13px; line-height:1.55; font-style:italic; }
+  .quote .q-meta { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); margin-top:6px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .quote .q-del { background:none; border:none; color:var(--red); cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:0; text-decoration:underline; }
+  .q-add { display:grid; gap:6px; border:1px dashed var(--line); border-radius:6px; padding:10px; }
+  .q-add .row2 { display:grid; grid-template-columns:1fr 2fr; gap:6px; }
+  textarea, .field { font-size:13px; padding:9px 11px; border:1px solid var(--line); border-radius:6px; background:#FBFCFE; color:var(--ink); width:100%; }
+  textarea { resize:vertical; }
+  .method { margin-top:26px; font-size:12px; color:var(--ink-soft); line-height:1.7; border-top:1px solid var(--line); padding-top:14px; }
+  .warn-line { padding:0 16px 12px; font-size:12px; color:var(--red); font-family:'IBM Plex Mono',monospace; }
+
+  .modal-bg { position:fixed; inset:0; background:rgba(24,35,56,.55); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px; }
+  .modal { background:var(--card); border-radius:10px; padding:22px; width:100%; max-width:380px; }
+  .modal h2 { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:22px; text-transform:uppercase; margin:0; }
+  .modal p { font-size:12px; color:var(--ink-soft); line-height:1.6; margin:8px 0 14px; }
+  .modal .field { margin-bottom:8px; }
+  .err { font-size:12px; color:var(--red); margin-bottom:8px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     MODE
+     The board works out of the box in STANDALONE mode:
+     data lives inside this file, you edit in your browser, then
+     use "Download updated file" and re-drag to Netlify to publish.
+
+     LATER (optional): to switch to live database mode so edits
+     publish instantly without re-uploading, follow SETUP.md and
+     paste your Supabase values below. Nothing else changes.
+     ============================================================ -->
+<script>
+  const SUPABASE_URL = "PASTE_YOUR_SUPABASE_URL_HERE";
+  const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE";
+  const FOLLOWUP_DAYS = 21;
+</script>
+
+<!-- Board data for standalone mode. The "Download updated file" button
+     rewrites this block automatically; you never edit it by hand.
+     Dates are ISO strings or null. Photos are official public-domain
+     congressional portraits via theunitedstates.io (Bioguide IDs). -->
+<script>
+/*BOARD_DATA_START*/
+const BOARD_DATA = [
+  {"id":"comer","name":"Rep. James Comer","state":"R-KY","role":"Oversight Chair","site":"https://comer.house.gov/","form":"https://comer.house.gov/contact","phone":"(202) 225-3115","photo":"https://theunitedstates.io/images/congress/225x275/C001108.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null},
+  {"id":"cloud","name":"Rep. Michael Cloud","state":"R-TX","role":"Oversight · DOGE","site":"https://cloud.house.gov/","form":"https://cloud.house.gov/contact","phone":"(202) 225-7742","photo":"https://theunitedstates.io/images/congress/225x275/C001115.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null,"quotes":[
+    {"text":"Americans deserve full transparency on where their tax dollars are going. Tomorrow's @DOGECommittee hearing will begin to tackle 'The War on Waste'. This is only the beginning, but it starts with exposing fraud and improper payments.","date":"Feb 2025","url":""},
+    {"text":"The War on Waste is long overdue... Thank you to @DOGECommittee... pushing forward the efforts championed by President Trump and @elonmusk.","date":"2025","url":""},
+    {"text":"Empty buildings without workers in them is not a public service to the people who pay taxes. Streamlining our bloated real estate will help eliminate waste, save taxpayer dollars...","date":"","url":""}
+  ]},
+  {"id":"fallon","name":"Rep. Pat Fallon","state":"R-TX","role":"Oversight","site":"https://fallon.house.gov/","form":"https://fallon.house.gov/contact","phone":"(202) 225-6673","photo":"https://theunitedstates.io/images/congress/225x275/F000246.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null},
+  {"id":"burchett","name":"Rep. Tim Burchett","state":"R-TN","role":"Oversight","site":"https://burchett.house.gov/","form":"https://burchett.house.gov/contact","phone":"","photo":"https://theunitedstates.io/images/congress/225x275/B001309.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null},
+  {"id":"meuser","name":"Rep. Dan Meuser","state":"R-PA","role":"House Member","site":"https://meuser.house.gov/","form":"https://meuser.house.gov/contact","phone":"","photo":"https://theunitedstates.io/images/congress/225x275/M001204.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null,"quotes":[
+    {"text":"We reviewed Treasury's actions to combat fraud in Minnesota and other areas... to eliminate waste, fraud, and abuse. We also discussed @POTUS's Anti-Fraud Task Force...","date":"Mar 2026","url":""}
+  ]},
+  {"id":"donalds","name":"Rep. Byron Donalds","state":"R-FL","role":"House Member","site":"https://donalds.house.gov/","form":"https://donalds.house.gov/contact","phone":"","photo":"https://theunitedstates.io/images/congress/225x275/D000032.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null},
+  {"id":"higgins","name":"Rep. Clay Higgins","state":"R-LA","role":"House Member","site":"https://higgins.house.gov/","form":"https://higgins.house.gov/contact","phone":"","photo":"https://theunitedstates.io/images/congress/225x275/H001077.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null},
+  {"id":"biggs","name":"Rep. Andy Biggs","state":"R-AZ","role":"House Member","site":"https://biggs.house.gov/","form":"https://biggs.house.gov/contact","phone":"","photo":"https://theunitedstates.io/images/congress/225x275/B001302.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null},
+  {"id":"greene","name":"Rep. Marjorie Taylor Greene","state":"R-GA","role":"House Member","site":"https://greene.house.gov/","form":"https://greene.house.gov/contact","phone":"","photo":"https://theunitedstates.io/images/congress/225x275/G000596.jpg","status":"not_contacted","sent_at":null,"followup_at":null,"responded_at":null}
+];
+/*BOARD_DATA_END*/
+</script>
+
+<div id="app">
+  <header>
+    <div class="wrap">
+      <div class="kicker-row">
+        <div class="kicker">Public response board · 119th Congress · House Oversight</div>
+        <button id="adminBtn">Admin</button>
+      </div>
+      <h1>Fraud-Elimination Proposal: Who Has Responded?</h1>
+      <div class="stats" id="stats"></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <span id="modeLine">Sorted: longest silence first</span>
+      <span style="display:flex; align-items:center; gap:10px;">
+        <span id="saveLine"></span>
+        <button id="publishBtn" class="hidden">↓ Download updated file</button>
+      </span>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="method">
+      <b>Methodology:</b> Each representative was contacted through their official House website contact form regarding a
+      proposal to reduce fraud and improper payments. Timers show elapsed time since submission. Automated acknowledgment
+      emails do not count as responses; only a substantive reply from the office flips a representative to "Responded."
+      Statuses are updated manually by the board owner as replies arrive.
+    </div>
+  </main>
+</div>
+
+<div id="loginModal" class="modal-bg hidden">
+  <div class="modal">
+    <h2>Admin sign-in</h2>
+    <p>Sign in with the owner account you created in Supabase. Visitors without it see the board read-only.</p>
+    <input id="loginEmail" class="field" type="email" placeholder="Email" autocomplete="username" />
+    <input id="loginPass" class="field" type="password" placeholder="Password" autocomplete="current-password" />
+    <div class="err hidden" id="loginErr"></div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-blue" id="loginGo">Sign in</button>
+      <button class="btn btn-gray" id="loginCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const STANDALONE = SUPABASE_URL.startsWith("PASTE_");
+  const LS_KEY = "board-local-edits-v1";
+  const $ = (id) => document.getElementById(id);
+
+  let reps = [];
+  let editing = false;      // standalone edit mode
+  let session = null;       // supabase session (database mode)
+  let expanded = null;
+  let sb = null;
+
+  // ---------- helpers ----------
+  const pad = (n) => String(n).padStart(2, "0");
+  const days = (a, b) => Math.max(0, Math.round((b - a) / 86400000));
+  const fmt = (iso) => new Date(iso).toLocaleDateString(undefined, { month:"short", day:"numeric", year:"numeric" });
+  const ms = (iso) => (iso ? new Date(iso).getTime() : null);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const initials = (name) => name.replace(/^Rep\.\s*/i, "").split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+  // ================= STANDALONE MODE =================
+  function lsOverrides() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch (e) { return {}; }
+  }
+
+  function loadStandalone() {
+    const ov = lsOverrides();
+    reps = BOARD_DATA.map((r) => ({ ...r, notes: "", ...(ov[r.id] || {}) }));
+    render();
+  }
+
+  function patchStandalone(id, fields) {
+    const ov = lsOverrides();
+    ov[id] = { ...(ov[id] || {}), ...fields };
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(ov));
+      $("saveLine").textContent = "saved in this browser";
+    } catch (e) { $("saveLine").textContent = "⚠ save failed"; }
+    loadStandalone();
+  }
+
+  async function downloadUpdatedFile() {
+    // Fetch this page's own source, splice the current board data in, download.
+    let src;
+    try {
+      const resp = await fetch(location.pathname.endsWith("/") ? location.pathname + "index.html" : location.pathname, { cache: "no-store" });
+      if (!resp.ok) throw new Error(resp.status);
+      src = await resp.text();
+    } catch (e) {
+      alert("Couldn't read the page source. This button works once the site is on Netlify (it can't run from a file opened directly off your disk). Deploy first, then edit and download from the live site.");
+      return;
+    }
+    // Notes stay private: they are excluded from the published file.
+    const publishable = reps.map(({ notes, ...rest }) => rest);
+    const block = "/*BOARD_DATA_START*/\nconst BOARD_DATA = " + JSON.stringify(publishable, null, 1) + ";\n/*BOARD_DATA_END*/";
+    src = src.replace(/\/\*BOARD_DATA_START\*\/[\s\S]*?\/\*BOARD_DATA_END\*\//, block);
+    const blob = new Blob([src], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "index.html";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    $("saveLine").textContent = "downloaded: re-drag folder to Netlify to publish";
+  }
+
+  // ================= DATABASE MODE (optional, per SETUP.md) =================
+  async function loadDb() {
+    const srcTable = session ? "reps" : "public_board";
+    const { data, error } = await sb.from(srcTable).select("*").order("name");
+    if (error) { $("saveLine").textContent = "⚠ load failed: check SETUP.md"; console.error(error); return; }
+    reps = data || [];
+    render();
+  }
+
+  async function patchDb(id, fields) {
+    $("saveLine").textContent = "saving…";
+    const { error } = await sb.from("reps").update(fields).eq("id", id);
+    $("saveLine").textContent = error ? "⚠ save failed" : "";
+    if (error) console.error(error);
+    await loadDb();
+  }
+
+  const load = () => (STANDALONE ? loadStandalone() : loadDb());
+  const patch = (id, f) => (STANDALONE ? patchStandalone(id, f) : patchDb(id, f));
+  const canEdit = () => (STANDALONE ? editing : !!session);
+
+  // ---------- admin button ----------
+  function syncMode() {
+    if (STANDALONE) {
+      $("adminBtn").textContent = editing ? "⏏ Done editing" : "Admin";
+      $("modeLine").innerHTML = editing
+        ? '<b style="color:var(--blue)">EDIT MODE</b> · changes save in this browser; use the download button, then re-drag to Netlify to publish'
+        : "Sorted: longest silence first";
+      $("publishBtn").classList.toggle("hidden", !editing);
+    } else {
+      $("adminBtn").textContent = session ? "⏏ Log out" : "Admin";
+      $("modeLine").innerHTML = session ? '<b style="color:var(--blue)">EDIT MODE</b>' : "Sorted: longest silence first";
+      $("publishBtn").classList.add("hidden");
+    }
+  }
+
+  $("adminBtn").onclick = async () => {
+    if (STANDALONE) { editing = !editing; syncMode(); render(); return; }
+    if (session) { await sb.auth.signOut(); }
+    else { $("loginModal").classList.remove("hidden"); $("loginEmail").focus(); }
+  };
+  $("publishBtn").onclick = downloadUpdatedFile;
+
+  if (!STANDALONE) {
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    sb.auth.onAuthStateChange((_e, s) => { session = s; syncMode(); loadDb(); });
+    $("loginCancel").onclick = () => { $("loginModal").classList.add("hidden"); $("loginErr").classList.add("hidden"); };
+    $("loginGo").onclick = doLogin;
+    $("loginPass").addEventListener("keydown", (e) => e.key === "Enter" && doLogin());
+    setInterval(loadDb, 60000); // visitors see updates without reloading
+  }
+
+  async function doLogin() {
+    const { error } = await sb.auth.signInWithPassword({ email: $("loginEmail").value.trim(), password: $("loginPass").value });
+    if (error) { $("loginErr").textContent = "Sign-in failed: " + error.message; $("loginErr").classList.remove("hidden"); }
+    else { $("loginModal").classList.add("hidden"); $("loginErr").classList.add("hidden"); $("loginPass").value = ""; }
+  }
+
+  // ---------- render ----------
+  function statusMeta(r) {
+    const sent = ms(r.sent_at), resp = ms(r.responded_at);
+    if (r.status === "responded") return { cls:"b-resp", text:`Responded · ${days(sent, resp)}d` };
+    if (r.status === "followed_up") return { cls:"b-follow", text:"Followed up · awaiting" };
+    if (r.status === "awaiting") return { cls:"b-await", text:"Awaiting reply" };
+    return { cls:"b-none", text:"Not yet contacted" };
+  }
+
+  function render() {
+    const now = Date.now();
+    const contacted = reps.filter((r) => r.status !== "not_contacted");
+    const responded = reps.filter((r) => r.status === "responded");
+    const awaiting = contacted.filter((r) => r.status !== "responded");
+    const avg = responded.length ? Math.round(responded.reduce((a, r) => a + days(ms(r.sent_at), ms(r.responded_at)), 0) / responded.length) : null;
+    const longest = awaiting.length ? Math.max(...awaiting.map((r) => days(ms(r.sent_at), now))) : null;
+
+    $("stats").innerHTML = [
+      ["Contacted", `${contacted.length} / ${reps.length}`, ""],
+      ["Awaiting reply", awaiting.length, awaiting.length ? "color:#F0B4AE" : ""],
+      ["Responded", responded.length, responded.length ? "color:#A9D8BC" : ""],
+      ["Avg response", avg == null ? "-" : avg + "d", ""],
+      ["Longest silence", longest == null ? "-" : longest + "d", longest > FOLLOWUP_DAYS ? "color:#F0B4AE" : ""],
+    ].map(([l, v, st]) => `<div class="stat"><b style="${st}">${v}</b><span>${l}</span></div>`).join("");
+
+    const order = { awaiting:0, followed_up:0, not_contacted:2, responded:3 };
+    const sorted = [...reps].sort((a, b) => {
+      const oa = order[a.status], ob = order[b.status];
+      if (oa !== ob) return oa - ob;
+      if (oa === 0) return (ms(a.sent_at) || 0) - (ms(b.sent_at) || 0);
+      return a.name.localeCompare(b.name);
+    });
+
+    $("cards").innerHTML = sorted.map((r) => cardHTML(r, now)).join("");
+    bindCards();
+  }
+
+  function cardHTML(r, now) {
+    const sent = ms(r.sent_at);
+    const wait = sent ? days(sent, r.status === "responded" ? ms(r.responded_at) : now) : null;
+    const overdue = sent && r.status !== "responded" && r.status !== "not_contacted" && wait >= FOLLOWUP_DAYS;
+    const b = statusMeta(r);
+    const showTicker = r.status === "awaiting" || r.status === "followed_up";
+    const av = r.photo
+      ? `<div class="avatar ${r.status === "responded" ? "dim" : ""}"><img src="${esc(r.photo)}" alt="Official portrait of ${esc(r.name)}" onerror="this.parentNode.innerHTML='<span class=initials>${initials(r.name)}</span>'"></div>`
+      : `<div class="avatar"><span class="initials">${initials(r.name)}</span></div>`;
+
+    return `<div class="card ${overdue ? "overdue" : ""}" data-id="${r.id}">
+      <button class="card-head" data-toggle="${r.id}">
+        ${av}
+        <div class="who">
+          <div class="nm">${esc(r.name)}</div>
+          <div class="meta">${esc(r.state || "")}${r.role ? " · " + esc(r.role) : ""}${sent ? " · contacted " + fmt(r.sent_at) : ""}${(r.quotes && r.quotes.length) ? ` · ${r.quotes.length} public statement${r.quotes.length > 1 ? "s" : ""} ▾` : ""}</div>
+        </div>
+        ${showTicker ? `<span class="ticker ${overdue ? "alarm" : ""}" data-tick="${sent}"></span>` : ""}
+        <span class="badge ${b.cls}">${b.text}</span>
+      </button>
+      ${overdue && expanded !== r.id ? `<div class="warn-line">▲ ${wait} days: time for a phone follow-up${r.phone ? ": " + esc(r.phone) : ""}</div>` : ""}
+      ${expanded === r.id ? bodyHTML(r) : ""}
+    </div>`;
+  }
+
+  function quotesHTML(r, editable) {
+    const qs = Array.isArray(r.quotes) ? r.quotes : [];
+    if (!qs.length && !editable) return "";
+    const items = qs.map((q, i) => `<div class="quote">
+        <div class="q-text">"${esc(q.text)}"</div>
+        <div class="q-meta">
+          <span>${esc(r.name)} on X${q.date ? ", " + esc(q.date) : ""}</span>
+          ${q.url ? `<a href="${esc(q.url)}" target="_blank" rel="noreferrer">View post ↗</a>` : (editable ? `<span style="color:var(--amber)">link needed</span>` : "")}
+          ${editable ? `<button class="q-del" data-qdel="${r.id}:${i}">remove</button>` : ""}
+        </div>
+      </div>`).join("");
+    const addForm = editable ? `<div class="q-add">
+        <textarea rows="2" class="field" data-qtext="${r.id}" placeholder="Paste the exact post text (verify wording against the original before publishing)"></textarea>
+        <div class="row2">
+          <input class="field" data-qdate="${r.id}" placeholder="Date (e.g. Feb 2025)" />
+          <input class="field" data-qurl="${r.id}" placeholder="Link to the original post (strongly recommended)" />
+        </div>
+        <div><button class="btn btn-blue" data-qadd="${r.id}">Add quote</button></div>
+      </div>` : "";
+    return `<div style="display:grid; gap:8px;">
+      <div class="q-label">On the record: public statements on waste &amp; fraud</div>
+      ${items}${addForm}
+    </div>`;
+  }
+
+  function bodyHTML(r) {
+    const links = [
+      r.form ? `<a class="chip" href="${esc(r.form)}" target="_blank" rel="noreferrer">Contact form ↗</a>` : "",
+      r.site ? `<a class="chip" href="${esc(r.site)}" target="_blank" rel="noreferrer">Website ↗</a>` : "",
+      r.phone ? `<span class="chip">DC ${esc(r.phone)}</span>` : "",
+    ].join("");
+
+    if (!canEdit()) {
+      const fu = r.followup_at ? `<div class="dates">Phone follow-up made: ${fmt(r.followup_at)}</div>` : "";
+      return `<div class="card-body"><div class="chip-row">${links}</div>${quotesHTML(r, false)}${fu}</div>`;
+    }
+
+    const btns = [];
+    if (r.status === "not_contacted") btns.push(`<button class="btn btn-blue" data-act="send" data-id="${r.id}">Log submission (now)</button>`);
+    if (r.status === "awaiting" || r.status === "followed_up") {
+      btns.push(`<button class="btn btn-green" data-act="respond" data-id="${r.id}">Mark responded</button>`);
+      if (r.status === "awaiting") btns.push(`<button class="btn btn-amber" data-act="follow" data-id="${r.id}">Log follow-up call</button>`);
+    }
+    if (r.status !== "not_contacted") btns.push(`<button class="btn-ghost" data-act="clear" data-id="${r.id}">Undo / clear entry</button>`);
+
+    const dates = r.sent_at ? `<div class="dates">Submitted: ${fmt(r.sent_at)}${r.followup_at ? " · Follow-up: " + fmt(r.followup_at) : ""}${r.responded_at ? " · Responded: " + fmt(r.responded_at) : ""}</div>` : "";
+    const noteHint = STANDALONE
+      ? "Private notes: stay in this browser only, never included in the downloaded/published file…"
+      : "Private admin notes: confirmation number, screenshot filename, reply summary…";
+
+    return `<div class="card-body">
+      <div class="chip-row">${links}</div>
+      <div class="chip-row">${btns.join("")}</div>
+      ${dates}
+      ${quotesHTML(r, true)}
+      <textarea rows="3" data-note="${r.id}" placeholder="${noteHint}">${esc(r.notes || "")}</textarea>
+    </div>`;
+  }
+
+  function bindCards() {
+    document.querySelectorAll("[data-toggle]").forEach((el) => {
+      el.onclick = () => { const id = el.dataset.toggle; expanded = expanded === id ? null : id; render(); };
+    });
+    document.querySelectorAll("[data-act]").forEach((el) => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.dataset.id, nowIso = new Date().toISOString();
+        const acts = {
+          send:    { status:"awaiting",   sent_at: nowIso },
+          respond: { status:"responded",  responded_at: nowIso },
+          follow:  { status:"followed_up", followup_at: nowIso },
+          clear:   { status:"not_contacted", sent_at:null, followup_at:null, responded_at:null, notes:"" },
+        };
+        if (el.dataset.act === "clear" && !confirm("Clear this rep's dates, status, and notes?")) return;
+        patch(id, acts[el.dataset.act]);
+      };
+    });
+    document.querySelectorAll("[data-note]").forEach((el) => {
+      el.onchange = () => patch(el.dataset.note, { notes: el.value });
+      el.onclick = (e) => e.stopPropagation();
+    });
+    // quotes: add
+    document.querySelectorAll("[data-qadd]").forEach((el) => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const id = el.dataset.qadd;
+        const text = document.querySelector(`[data-qtext="${id}"]`).value.trim();
+        if (!text) return;
+        const date = document.querySelector(`[data-qdate="${id}"]`).value.trim();
+        const url = document.querySelector(`[data-qurl="${id}"]`).value.trim();
+        const rep = reps.find((r) => r.id === id);
+        const quotes = [...(rep.quotes || []), { text, date, url }];
+        patch(id, { quotes });
+      };
+    });
+    // quotes: remove
+    document.querySelectorAll("[data-qdel]").forEach((el) => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const [id, idx] = el.dataset.qdel.split(":");
+        const rep = reps.find((r) => r.id === id);
+        const quotes = (rep.quotes || []).filter((_, i) => i !== Number(idx));
+        patch(id, { quotes });
+      };
+    });
+    // stop card toggle when typing in quote fields
+    document.querySelectorAll("[data-qtext],[data-qdate],[data-qurl]").forEach((el) => {
+      el.onclick = (e) => e.stopPropagation();
+    });
+  }
+
+  // ---------- live tickers (one interval for the whole page) ----------
+  setInterval(() => {
+    const now = Date.now();
+    document.querySelectorAll("[data-tick]").forEach((el) => {
+      const from = Number(el.dataset.tick);
+      const s = Math.max(0, Math.floor((now - from) / 1000));
+      const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+      el.innerHTML = `${d}<small>d</small> ${pad(h)}<small>h</small> ${pad(m)}<small>m</small> ${pad(ss)}<small>s</small>`;
+    });
+  }, 1000);
+
+  syncMode();
+  load();
+})();
+</script>
+</body>
+</html>
