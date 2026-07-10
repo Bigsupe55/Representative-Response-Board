@@ -1,0 +1,59 @@
+name: Response watcher
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"   # every 2 hours; each run also keeps the free database awake
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Log decisions without changing anything"
+        type: boolean
+        default: false
+      sender_domain:
+        description: "Override sender domain filter (testing only)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write   # watcher needs read; the keepalive step pushes an empty commit ~monthly
+  issues: write
+
+concurrency:
+  group: response-watcher
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save --no-audit --no-fund imapflow mailparser
+      - run: node scripts/response-watcher.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          SENDER_DOMAIN: ${{ inputs.sender_domain }}
+      # GitHub disables cron workflows after 60 days without commits; refresh with
+      # an empty commit when the last one is older than 45 days.
+      - name: Keep scheduled workflow alive
+        run: |
+          last=$(git log -1 --format=%ct)
+          age_days=$(( ( $(date +%s) - last ) / 86400 ))
+          echo "Last commit is ${age_days} day(s) old"
+          if [ "$age_days" -ge 45 ]; then
+            git config user.name "response-watcher[bot]"
+            git config user.email "response-watcher@users.noreply.github.com"
+            git commit --allow-empty -m "keepalive: refresh scheduled workflow window"
+            git push
+          fi

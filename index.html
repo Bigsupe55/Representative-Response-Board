@@ -148,7 +148,8 @@ const BOARD_DATA = [
       <b>Methodology:</b> Each representative was contacted through their official House website contact form regarding a
       proposal to reduce fraud and improper payments. Timers show elapsed time since submission. Automated acknowledgment
       emails do not count as responses; only a substantive reply from the office flips a representative to "Responded."
-      Statuses are updated manually by the board owner as replies arrive.
+      An automated monitor checks the submission inbox for office replies every two hours and updates statuses,
+      filtering out acknowledgment receipts and bulk mail. The board owner reviews every automatic update and corrects errors.
     </div>
   </main>
 </div>

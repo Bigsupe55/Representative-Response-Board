@@ -99,3 +99,15 @@ To update the site file itself later, just re-drag the folder. (Data updates don
 - **"load failed" on the page** → the SQL in Step 1 didn't run fully, or the URL/key in Step 3 is wrong.
 - **Sign-in fails** → check the user exists under Authentication → Users and was auto-confirmed.
 - **A photo is wrong/missing** → edit that row's `photo` URL in Table Editor. Any member's official portrait is at `https://theunitedstates.io/images/congress/225x275/BIOGUIDE_ID.jpg`: find the Bioguide ID on their congress.gov page.
+
+## Optional: automatic response watcher
+
+`.github/workflows/response-watcher.yml` runs `scripts/response-watcher.mjs` every 2 hours in GitHub Actions. It reads the inbox you used on the contact forms, ignores auto-acknowledgments and bulk mail, flips the matching representative to Responded (timestamped with the reply's own date), opens a GitHub issue for every flip or anything it can't classify, and keeps the free Supabase project from pausing. Each run only considers reps currently awaiting a reply, so re-runs are harmless.
+
+Repository secrets it needs (Settings → Secrets and variables → Actions):
+
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY` : same values as in `index.html`
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` : the board admin login from Step 2 (writes go through the same row-level security as the site)
+- `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` : the Gmail inbox that receives replies, with an app password (requires 2-Step Verification; create at myaccount.google.com/apppasswords)
+
+Test it from the Actions tab with "Run workflow" and `dry_run` enabled: it logs every decision without changing anything. Wrong flip? Open the board, sign in as Admin, and use "Undo / clear entry".
