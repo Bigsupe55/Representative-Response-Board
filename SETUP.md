@@ -22,13 +22,14 @@ create table reps (
   sent_at timestamptz,
   followup_at timestamptz,
   responded_at timestamptz,
+  quotes jsonb,
   notes text
 );
 
 -- Public view: everything EXCEPT private notes
 create view public_board as
   select id, name, state, role, site, form, phone, photo,
-         status, sent_at, followup_at, responded_at
+         status, sent_at, followup_at, responded_at, quotes
   from reps;
 
 -- Lock the table down
@@ -54,6 +55,8 @@ insert into reps (id, name, state, role, site, form, phone, photo) values
 ('biggs',   'Rep. Andy Biggs',             'R-AZ', 'House Member',     'https://biggs.house.gov/',   'https://biggs.house.gov/contact',   '',               'https://theunitedstates.io/images/congress/225x275/B001302.jpg'),
 ('greene',  'Rep. Marjorie Taylor Greene', 'R-GA', 'House Member',     'https://greene.house.gov/',  'https://greene.house.gov/contact',  '',               'https://theunitedstates.io/images/congress/225x275/G000596.jpg');
 ```
+
+> Note: the site also stores each rep's public statements in the `quotes` column (that's why it's in the table and the view above). This seed starts everyone with no quotes; `supabase-setup.sql` in this repo is the same schema but seeds the quotes that were already on the live board.
 
 ## Step 2: Create your admin login
 
