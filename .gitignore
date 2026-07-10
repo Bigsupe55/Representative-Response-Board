@@ -1,0 +1,4 @@
+# Local deploy artifacts (not part of the site source)
+deploy-package/
+rot-watch-site.zip
+.netlify/
